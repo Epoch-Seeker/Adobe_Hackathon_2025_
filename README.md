@@ -12,6 +12,10 @@ Problem1b/
 ├── process.py
 ├── input/
 ├── output/
+├── models/
+│   ├── all-MiniLM-L6-v2/
+│   └── google/
+│       └── flan-t5-small/
 ├── requirements.txt
 ├── Dockerfile
 └── README.md
@@ -52,13 +56,5 @@ docker run --rm `
   -v ${PWD}\input:/app/input `
   -v ${PWD}\output:/app/output `
   adobe_problem_1b:layout `
-  python process.py --input_json /app/input/challenge1b_input.json
-```
-For Windows Git Bash:
-```bash
-docker run --rm \
-  -v "$(pwd)/input:/app/input" \
-  -v "$(pwd)/output:/app/output" \
-  adobe_problem_1b:layout \
   python process.py --input_json /app/input/challenge1b_input.json
 ```
