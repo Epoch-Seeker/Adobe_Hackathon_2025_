@@ -1,16 +1,23 @@
-FROM --platform=linux/amd64 python:3.9-slim
+FROM python:3.10-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+ && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
 
-# Install dependencies
-RUN apt-get update && \
-    apt-get install -y libglib2.0-0 libsm6 libxrender1 libxext6 poppler-utils && \
-    pip install --no-cache-dir torch PyMuPDF transformers sentence-transformers numpy
+# Copy project files into the container
+COPY . /app
 
-# Copy project files
-COPY process.py .
-COPY input ./input
+# Install Python dependencies
+RUN pip install --upgrade pip
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Entry point
-CMD ["python", "process.py", "--input_json", "./input/input.json"]
+# Set environment variables to ensure offline mode
+ENV TRANSFORMERS_OFFLINE=1
+ENV HF_DATASETS_OFFLINE=1
+
+# Run the main script
+CMD ["python", "process.py", "--input_json", "challenge1b_input.json"]

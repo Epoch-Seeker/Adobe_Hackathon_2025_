@@ -9,26 +9,35 @@ import numpy as np
 from datetime import datetime, timezone
 from sentence_transformers import SentenceTransformer, util
 from transformers import pipeline
+ 
+import torch
+from sentence_transformers import SentenceTransformer
+from transformers import pipeline
 
 # --- MODEL CONFIGURATION ---
-EMBEDDING_MODEL_NAME = 'all-MiniLM-L6-v2'
-SUMMARIZER_MODEL_NAME = 'google/flan-t5-small'
+EMBEDDING_MODEL_PATH = "models/all-MiniLM-L6-v2"
+SUMMARIZER_MODEL_PATH = "models/google/flan-t5-small"
+    
 
 def load_models():
-    """Loads the sentence embedding and summarization models into memory."""
     print("➡️ Loading embedding model...")
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    embedding_model = SentenceTransformer(EMBEDDING_MODEL_NAME, device=device)
-    
+    embedding_model = SentenceTransformer(EMBEDDING_MODEL_PATH, device=device)
+
     print("➡️ Loading summarization model...")
     summarizer = pipeline(
         "summarization",
-        model=SUMMARIZER_MODEL_NAME,
-        tokenizer=SUMMARIZER_MODEL_NAME,
-        device=-1 if device == 'cpu' else 0
+        model=SUMMARIZER_MODEL_PATH,
+        tokenizer=SUMMARIZER_MODEL_PATH,
+        device=0 if device == 'cuda' else -1
+        # Removed local_files_only=True because it's not a valid pipeline arg
     )
+
     print("✅ Models loaded successfully.")
     return embedding_model, summarizer
+
+
+
 
 def parse_documents_structurally(doc_paths: list) -> list:
     """Parses PDFs to extract text chunks based on structural heuristics (headings)."""
@@ -117,18 +126,27 @@ def generate_refined_text(chunks: list, summarizer, persona: str, job: str, max_
     """Generates a persona-aware summary for the top-ranked sections."""
     print(f"✍️ Generating analysis for top {max_sections} sections...")
     analyzed_chunks = []
-    
+
+    MAX_INPUT_TOKENS = 500  # Safe limit for flan-t5-small (512 max)
+
     for chunk in chunks[:max_sections]:
         content = chunk['content']
         prompt = f"Summarize the following text for a '{persona}' who needs to '{job}':\n\n{content}"
-        
+
+        # ✂️ Truncate prompt if it's too long
+        prompt_words = prompt.split()
+        if len(prompt_words) > MAX_INPUT_TOKENS:
+            prompt = ' '.join(prompt_words[:MAX_INPUT_TOKENS])
+
+        # Generate summary
         summary = summarizer(prompt, max_length=150, min_length=30, do_sample=False)[0]['summary_text']
-        
+
         chunk['refined_text'] = summary
         analyzed_chunks.append(chunk)
 
     print("✅ Analysis complete.")
     return analyzed_chunks
+
 
 def main():
     """Main function to run the document intelligence pipeline from a JSON input."""
